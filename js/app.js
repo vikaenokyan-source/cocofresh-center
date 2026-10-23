@@ -7,6 +7,27 @@
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const mqMobile = matchMedia('(max-width: 860px)');
   const body = document.body;
+
+  // вариант «блюдо по центру», как в референсах (вариант с блюдом сбоку — репозиторий cocofresh)
+  const LAYOUT = 'center';
+  if (LAYOUT === 'center') {
+    body.classList.add('layout-center');
+    // делим текст блока на две колонки вокруг блюда: слева заголовок, вводный абзац и фото,
+    // справа детали (цифры, списки, цены, кнопки) — так обе колонки заполняют высоту экрана
+    document.querySelectorAll('.scene-sec__content').forEach(c => {
+      const kids = [...c.children];
+      const split = kids.findIndex(k => k.tagName === 'P' && !k.matches('.eyebrow, .step-cap, .note'));
+      const l = document.createElement('div'), r = document.createElement('div');
+      l.className = 'col-l'; r.className = 'col-r';
+      kids.forEach((k, i) => (i <= split || k.matches('.photos') ? l : r).appendChild(k));
+      c.append(l, r);
+      // если справа заметно меньше текста — переносим фото туда, чтобы колонки были поровну
+      const ph = l.querySelector(':scope > .photos');
+      const h = col => [...col.children].reduce((sum, k) => sum + k.offsetHeight, 0);
+      if (ph && innerWidth > 860 && h(l) - h(r) > 250) r.appendChild(ph);
+      if (l.querySelector('.photos')) l.classList.add('col-l--photos');
+    });
+  }
   let ready = false;
 
   // всегда начинаем с первого экрана — анимация идёт с начала
@@ -44,12 +65,15 @@
 
   /* ---------- позиции сцены по секциям ---------- */
   const POSES = {
-    desktop: { hero: ['0vw', '6vh', 1], right: ['24vw', '2vh', .84], left: ['-24vw', '2vh', .84] },
+    desktop: { hero: ['0vw', '6vh', 1], center: ['0vw', '3vh', .84], right: ['24vw', '2vh', .84], left: ['-24vw', '2vh', .84] },
     mobile:  { hero: ['0vw', '-8svh', .9], right: ['0vw', '-21svh', .9], left: ['0vw', '-21svh', .9] },
   };
   const pose = $('#stagePose');
   function setPose(name) {
-    const set = POSES[mqMobile.matches ? 'mobile' : 'desktop'][name];
+    const mode = mqMobile.matches ? 'mobile' : 'desktop';
+    const set = (LAYOUT === 'center' && mode === 'desktop' && (name === 'left' || name === 'right'))
+      ? POSES.desktop.center
+      : POSES[mode][name];
     if (!set) return; // «hide» — сцена просто перекрыта сплошной секцией
     pose.style.setProperty('--px', set[0]);
     pose.style.setProperty('--py', set[1]);
